@@ -17,6 +17,8 @@ from keras.regularizers import l1l2
 import inbreast
 #import googlenet
 from convnetskeras.convnets import preprocess_image_batch, convnet
+
+# 基于深度MIL的最大池化
 np.random.seed(1)
 #srng = RandomStreams(1)
 # 参数设置 控制模型训练的行为
