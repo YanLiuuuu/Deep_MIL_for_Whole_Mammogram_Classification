@@ -17,6 +17,8 @@ from keras.regularizers import l1l2
 import inbreast
 #import googlenet
 from convnetskeras.convnets import preprocess_image_batch, convnet
+
+# AlexNet
 np.random.seed(1)
 #srng = RandomStreams(1)
 fold = 2 # 4
