@@ -17,7 +17,7 @@ from keras.regularizers import l1l2
 import inbreast
 #import googlenet
 from convnetskeras.convnets import preprocess_image_batch, convnet
-# 基于稀疏密度MIL
+# 基于稀疏深度MIL
 np.random.seed(1)
 #srng = RandomStreams(1)
 fold = 4# 4
