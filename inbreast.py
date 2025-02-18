@@ -162,6 +162,11 @@ def cvsplit(fold, totalfold, mydict):
     # 否则继续遍历下一个fold
     count += 1
 
+# 增强版的分层K折交叉验证，将数据集划分为训练集、验证集和测试集
+# fold：当前需要返回的 fold 编号（从 0 到 totalfold-1）
+# totalfold：交叉验证的总折数
+# mydict：一个字典，键为样本标识（如文件名），值为标签。通常由 readlabel() 函数生成
+# valfold：验证集的 fold 编号。如果未指定（-1），则默认为 (fold + 1) % totalfold
 def cvsplitenhance(fold, totalfold, mydict, valfold=-1):
   '''get the split of train and test
   fold is the returned fold th data, from 0 to totalfold-1
@@ -173,22 +178,25 @@ def cvsplitenhance(fold, totalfold, mydict, valfold=-1):
   y = mydict.values()
   x = mydict.keys()
   count = 0
+  # 验证集fold编号
+  # 如果未指定验证集 fold 编号（valfold=-1），则默认为 (fold + 1) % totalfold
   if valfold == -1: 
     valfold = (fold+1) % totalfold
-  print('valfold'+str(valfold))
+  print('valfold'+str(valfold)) # 打印验证集fold编号
+  # 划分数据
   trainls, valls, testls = [], [], []
   for train, test in skf.split(x,y):
     print(len(train), len(test))
-    if count == fold:
-      #print test[:]
-      testls = test[:]
-    elif count == valfold:
-      valls = test[:]
-    else:
+    if count == fold: # 如果当前 fold 编号（count）等于目标 fold 编号（fold
+      #print test[:] 
+      testls = test[:] # 当前fold作为测试集
+    elif count == valfold: # 当前 fold 编号等于验证集 fold 编号（valfold）
+      valls = test[:] # 指定fold作为验证集
+    else: # 其他fold的数据合并为训练集
       for i in test:
-        trainls.append(i)
+        trainls.append(i) # 其他fold作为训练集
     count += 1
-  return trainls, valls, testls
+  return trainls, valls, testls # 返回索引列表
 
 def loadim(fname, preprocesspath=preprocesspath):
   ''' from preprocess path load fname
