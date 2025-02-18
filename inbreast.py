@@ -16,19 +16,21 @@ path = '../AllDICOMs/'
 preprocesspath = '../preprocesspath/'
 labelfile = './label.txt'
 
+# 从一个标签文件（labelfile）中读取标签信息，并将其存储为一个字典（mydict，确保标签值为0或1
 def readlabel():
   '''read the label as a dict from labelfile'''
-  mydict = {}
-  with open(labelfile, 'r') as f:
-    flines = f.readlines()
-    for line in flines:
-      data = line.split()
-      if int(data[1]) == 0:
-        mydict[data[0]] = int(data[1])
-      else:
-        assert(int(data[1])==2 or int(data[1])==1)
-        mydict[data[0]] = int(data[1])-1
-  return mydict
+  mydict = {} # 初始化一个空字典
+  with open(labelfile, 'r') as f: # 打开标签文件
+    flines = f.readlines() # 读取文件的所有行
+    for line in flines: # 遍历每一行
+      data = line.split() # 将行按空格分割为列表
+      if int(data[1]) == 0: # 如果标签值为0
+        mydict[data[0]] = int(data[1]) # 直接存储为0
+      else: # 如果标签值为1或2
+        assert(int(data[1])==2 or int(data[1])==1) # 确保标签值为1或2
+        mydict[data[0]] = int(data[1])-1 # 将标签值转换为0或1
+  return mydict # 返回字典
+
 
 def readdicom(mydict):
   '''read the dicom image, rename it consistently with the name in labels, crop and resize, and save as pickle.
