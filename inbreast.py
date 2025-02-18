@@ -198,20 +198,24 @@ def cvsplitenhance(fold, totalfold, mydict, valfold=-1):
     count += 1
   return trainls, valls, testls # 返回索引列表
 
+# 从指定的预处理路径（preprocesspath）中加载一个 pickle 文件
+# 返回加载的图像数据（ims 列表）
+# fname 要加载的文件名
+# preprocesspath：文件所在的路径，默认为全局变量 preprocesspath
 def loadim(fname, preprocesspath=preprocesspath):
   ''' from preprocess path load fname
   fname file name in preprocesspath
   aug is true, we augment im fliplr, rot 4'''
   ims = []
   with open(join(preprocesspath, fname), 'rb') as inputfile:
-    im = cPickle.load(inputfile)
+    im = cPickle.load(inputfile) # 使用cPickle.load从pickle文件中加载数据
     #up_bound = np.random.choice(174)                          #zero out square
     #right_bound = np.random.choice(174)
     img = im
     #img[up_bound:(up_bound+50), right_bound:(right_bound+50)] = 0.0
-    ims.append(img)
+    ims.append(img) # 将加载的图像数据（im）直接添加到 ims 列表中
     inputfile.close()
-  return ims
+  return ims # 返回包含图像数据的列表 ims
 
 def loaddata(fold, totalfold, usedream=True, aug=True):
   '''get the fold th train and  test data from inbreast
