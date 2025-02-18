@@ -35,14 +35,14 @@ def readlabel():
 def readdicom(mydict):
   '''read the dicom image, rename it consistently with the name in labels, crop and resize, and save as pickle.
   mydict is the returned value of readlabel'''
-  img_ext = '.dcm'
-  img_fnames = [x for x in os.listdir(path) if x.endswith(img_ext)]
-  for f in img_fnames:
-    names = f.split('_')
+  img_ext = '.dcm' # DICOM文件扩展名
+  img_fnames = [x for x in os.listdir(path) if x.endswith(img_ext)] # 图像名称
+  for f in img_fnames: # 遍历每个文件
+    names = f.split('_') # 将文件名按 _ 分割，提取前缀（names[0]）
     if names[0] not in mydict:
       print(names[0]+'occur error')
-    dicom_content = dicom.read_file(join(path,f))
-    img = dicom_content.pixel_array
+    dicom_content = dicom.read_file(join(path,f)) # 读取文件
+    img = dicom_content.pixel_array # 获取图像像素数据
     '''fig = plt.figure()
     ax1 = plt.subplot(3,3,1)
     ax2 = plt.subplot(3,3,2)
@@ -57,14 +57,17 @@ def readdicom(mydict):
     ax1.set_title('Original')
     ax1.axis('off')'''
     
-    thresh = threshold_otsu(img)
+    thresh = threshold_otsu(img) # 使用 Otsu 阈值法对图像进行二值化，生成二值图像 binary
     binary = img > thresh
     #ax2.imshow(binary, cmap='Greys_r')
     #ax2.set_title('mask')
     #ax2.axis('off')
-    
+
+    # 裁剪图像
+    # 初始化裁剪区域的边界（minx，miny，maxx，maxy）
     minx, miny = 0, 0
     maxx, maxy = img.shape[0], img.shape[1]
+    # 遍历图像的每一行，找到有效区域的上下边界minxx和maxx
     for xx in xrange(img.shape[1]):
       if sum(binary[xx, :]==0) < binary.shape[1]-60:
         minx = xx
@@ -73,6 +76,7 @@ def readdicom(mydict):
       if sum(binary[xx, :]==0) < binary.shape[1]-60:
         maxx = xx
         break
+    # 根据文件名中的信息（names[3]）判断图像是左侧还是右侧，找到有效区域的左右边界（miny 和 maxy）
     if names[3] == 'R':
       maxy = img.shape[1]
       for yy in xrange(int(img.shape[1]*3.0/4), -1, -1):
@@ -89,11 +93,13 @@ def readdicom(mydict):
     #ax3.set_title('Foreground')
     #ax3.imshow(img[minx:maxx+1, miny:maxy+1], cmap='Greys_r')
     #ax3.axis('off')
-    
+    # 缩放图像
     img = img.astype(np.float32)
+    # 将裁剪后的图像缩放到 227x227 和 299x299 大小
+     # 使用 cPickle.dump 将缩放后的图像保存为 pickle 文件
     img1 = scipy.misc.imresize(img[minx:maxx+1, miny:maxy+1], (227, 227), interp='cubic')
     with open(join(preprocesspath, names[0])+'227.pickle', 'wb') as outfile:
-      cPickle.dump(img1, outfile) 
+      cPickle.dump(img1, outfile)
     img1 = scipy.misc.imresize(img[minx:maxx+1, miny:maxy+1], (299, 299), interp='cubic')
     with open(join(preprocesspath, names[0])+'299.pickle', 'wb') as outfile:
       cPickle.dump(img1, outfile) 
@@ -124,21 +130,36 @@ def readdicom(mydict):
     fig.savefig(join(preprocesspath, names[0])+'.jpg')
     plt.close(fig)'''
 
+# 实现分层K折交叉验证的数据划分
+# 根据输入的 fold 和 totalfold 参数，将数据集划分为训练集和测试集
+# 使用分层 K 折交叉验证，确保每个 fold 中各类别的比例与原始数据集一致
+# 返回指定 fold 的训练集和测试集的索引
+# 参数说明
+# fold：当前需要返回的 fold 编号（从 0 到 totalfold-1）
+# totalfold：交叉验证的总折数
+# mydict：一个字典，键为样本标识（如文件名），值为标签。通常由 readlabel() 函数生成
 def cvsplit(fold, totalfold, mydict):
   '''get the split of train and test
   fold is the returned fold th data, from 0 to totalfold-1
   total fold is for the cross validation
   mydict is the return dict from readlabel'''
+  # 分层K折交叉验证
+  # n_splits=totalfold：指定交叉验证的总折数
+  # shuffle=False：默认不随机打乱数据（可以通过设置 shuffle=True 来打乱数据）
   skf = StratifiedKFold(n_splits=totalfold)  # default shuffle is false, okay!
   #readdicom(mydict)
-  y = mydict.values()
-  x = mydict.keys()
+  # 准备数据
+  y = mydict.values() # 标签列表
+  x = mydict.keys() # 样本标识列表
+  # 划分数据
   count = 0
-  for train, test in skf.split(x,y):
+  for train, test in skf.split(x,y): # 遍历 StratifiedKFold 生成的划分结果
     print(len(train), len(test))
-    if count == fold:
+    if count == fold: 
+      # 如果当前 fold 编号（count）等于目标 fold 编号（fold），则返回当前 fold 的训练集和测试集的索引
       #print test
-      return train, test
+      return train, test # 输出：训练集和测试集的索引列表
+    # 否则继续遍历下一个fold
     count += 1
 
 def cvsplitenhance(fold, totalfold, mydict, valfold=-1):
