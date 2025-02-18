@@ -17,26 +17,27 @@ from keras.regularizers import l1l2
 import inbreast
 #import googlenet
 from convnetskeras.convnets import preprocess_image_batch, convnet
+# 基于标签赋值的深度计算
 np.random.seed(1)
 #srng = RandomStreams(1)
-fold = 0# 4
-valfold = 2
-lr = 5e-5
-nb_epoch = 500
-batch_size = 80
-l2factor = 1e-5
-l1factor = 0#2e-7
-usedream = False
-weighted = False #True
-noises = 50
-data_augmentation = True
-modelname = 'alexnet' # miccai16, alexnet, levynet, googlenet
-pretrain = True
-mymil=True
-mymilk = 1
+fold = 0# 4 # 交叉验证的fold
+valfold = 2 # 验证集的fold
+lr = 5e-5 # 学习率
+nb_epoch = 500 # 训练轮数
+batch_size = 80 # 批量大小
+l2factor = 1e-5 # L2正则化系数
+l1factor = 0#2e-7 # L1正则化系数
+usedream = False # 是否使用某种特定方法
+weighted = False #True # 是否使用类别权重
+noises = 50 # 数据增强中的噪声参数
+data_augmentation = True # 是否使用数据增强
+modelname = 'alexnet' # miccai16, alexnet, levynet, googlenet # 模型名称
+pretrain = True # 是否使用预训练模型
+mymil=True # 是否使用多实例学习
+mymilk = 1 # 多实例学习的参数
 savename = modelname+'new_fd'+str(fold)+'_vf'+str(valfold)+'_lr'+str(lr)+'_l2'+str(l2factor)+'_l1'\
 +str(l1factor)+'_ep'+str(nb_epoch)+'_bs'+str(batch_size)+'_w'+str(weighted)+'_dr'+str(usedream)+str(noises)+str(pretrain)+'_mymil'+str(mymil)+str(mymilk)
-print(savename)
+print(savename) # 保存模型和日志
 nb_classes = 2
 # input image dimensions
 img_rows, img_cols = 227, 227
@@ -44,7 +45,9 @@ img_rows, img_cols = 227, 227
 img_channels = 1
 
 # the data, shuffled and split between train and test sets
+# 从 inbreast 模块加载数据，包括训练集、验证集和测试集
 trX, y_train, teX, y_test, teteX, y_test_test = inbreast.loaddataenhance(fold, 5, valfold=valfold)
+# 将标签数据重塑为二维数组
 trY = y_train.reshape((y_train.shape[0],1))
 teY = y_test.reshape((y_test.shape[0],1))
 teteY = y_test_test.reshape((y_test_test.shape[0],1))
@@ -56,12 +59,17 @@ weights = np.array((ratio, 1-ratio))
 #trYori = np.concatenate((1-trY, trY), axis=1)
 #teY = np.concatenate((1-teY, teY), axis=1)
 #teteY = np.concatenate((1-teteY, teteY), axis=1)
+# 将输入数据重塑为适合卷积神经网络的形状（通道在前格式）
 X_train = trX.reshape(-1, img_channels, img_rows, img_cols)
 X_test = teX.reshape(-1, img_channels, img_rows, img_cols)
 X_test_test = teteX.reshape(-1, img_channels, img_rows, img_cols)
 print('tr, val, te mean, std')
 print(X_train.mean(), X_test.mean(), X_test_test.mean())
 # convert class vectors to binary class matrices
+# 多实例学习（MIL）的标签处理
+# 将标签转换为多实例学习（MIL）的格式
+# 6*6 表示每个样本被划分为 36 个实例（可能是图像的子区域）
+# mymilk 控制有多少实例被赋予真实标签，其余实例的标签为 0。
 Y_train = np.zeros((y_train.shape[0], 6*6))
 Y_test = np.zeros((y_test.shape[0], 6*6))
 Y_test_test = np.zeros((y_test_test.shape[0], 6*6))
@@ -90,6 +98,7 @@ print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'val samples')
 print(X_test_test.shape[0], 'test samples')
+# 模型构建
 model = Sequential()
 if modelname == 'alexnet':
   X_train_extend = np.zeros((X_train.shape[0],3, 227, 227))
@@ -127,6 +136,7 @@ if modelname == 'alexnet':
   else:
     model = convnet('alexnet', outdim=2, l1=l1factor,l2=l2factor, usemymil=mymil, k=mymilk)
 # let's train the model using SGD + momentum (how original).
+# 模型编译
 sgd = Adam(lr=lr) #SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='binary_crossentropy', #categorical_crossentropy',
               optimizer=sgd,
@@ -136,6 +146,7 @@ print(model.summary())
 #{val_prec:.2f}-{val_reca:.2f}-{val_f1:.2f}.hdf5'
 #checkpoint0 = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='max')
 #checkpoint1 = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+# 回调函数
 checkpoint0 = LossEpoch(savename, validation_data=(X_test, Y_test), interval=1, mymil=mymil)
 checkpoint1 = ACCEpoch(savename, validation_data=(X_test, Y_test), interval=1, mymil=mymil)
 checkpoint2 = AUCEpoch(savename, validation_data=(X_test, Y_test), interval=1, mymil=mymil)
@@ -152,6 +163,7 @@ X_train = X_train.astype('float32')
 X_test = X_test.astype('float32')
 #X_train /= 255
 #X_test /= 255
+# 数据增强
 if not data_augmentation:
   print('Not using data augmentation.')
   model.fit(X_train, Y_train,
