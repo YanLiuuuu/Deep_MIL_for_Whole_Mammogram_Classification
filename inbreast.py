@@ -217,39 +217,53 @@ def loadim(fname, preprocesspath=preprocesspath):
     inputfile.close()
   return ims # 返回包含图像数据的列表 ims
 
+# 根据交叉验证的 fold 划分训练集和测试集
+# 加载图像数据并进行数据增强（可选）
+# 如果启用 usedream，则将额外的数据（dreamdata）合并到训练集中
+# 返回训练集和测试集的数据和标签。
+# 参数说明 当前fold编号（0-totalfold-1） 交叉验证的总折数 是否将额外的数据dreamdata合并到训练集中 是否对训练集进行数据增强
 def loaddata(fold, totalfold, usedream=True, aug=True):
   '''get the fold th train and  test data from inbreast
   fold is the returned fold th data, from 0 to totalfold-1
   total fold is for the cross validation'''
+  # 读取标签
+  # 调用 readlabel() 函数读取标签，返回一个字典 mydict，其中键为样本标识，值为标签
+  # mydictkey 和 mydictvalue 分别是字典的键和值
   mydict = readlabel()
   mydictkey = mydict.keys()
   mydictvalue = mydict.values()
+  # 划分训练集和测试集
+  # 调用 cvsplit() 函数，根据当前 fold 和总折数 totalfold，划分训练集和测试集的索引
   trainindex, testindex = cvsplit(fold, totalfold, mydict)
-  if aug == True:
+  # 初始化数据数组
+  if aug == True: # 如果启用数据增强（aug=True），则训练集的大小为 6 * len(trainindex)（假设每个样本生成 6 个增强样本）
     traindata, trainlabel = np.zeros((6*len(trainindex),227,227)), np.zeros((6*len(trainindex),))
-  else:
+  else: # 否则，训练集的大小为 len(trainindex) 测试集的大小为 len(testindex)
     traindata, trainlabel = np.zeros((len(trainindex),227,227)), np.zeros((len(trainindex),))
   testdata, testlabel =  np.zeros((len(testindex),227,227)), np.zeros((len(testindex),))
+  # 加载训练集数据
   traincount = 0
-  for i in xrange(len(trainindex)):
-    ims = loadim(mydictkey[trainindex[i]]+'.pickle', aug=aug)
-    for im in ims:
+  for i in xrange(len(trainindex)): # 遍历训练集索引 trainindex，加载每个样本的图像数据
+    ims = loadim(mydictkey[trainindex[i]]+'.pickle', aug=aug) # 调用 loadim() 函数加载图像数据，返回一个图像列表 ims
+    for im in ims: # 将每个图像及其标签存储到 traindata 和 trainlabel 中
       traindata[traincount, :, :] = im
       trainlabel[traincount] = mydictvalue[trainindex[i]]
       traincount += 1
-  assert(traincount==traindata.shape[0])
+  assert(traincount==traindata.shape[0]) # 使用 assert 确保加载的数据量与数组大小一致
+  # 加载测试集数据
   testcount = 0
-  for i in xrange(len(testindex)):
-    ims = loadim(mydictkey[testindex[i]]+'.pickle', aug=aug)
-    testdata[testcount,:,:] = ims[0]
+  for i in xrange(len(testindex)): # 遍历测试集索引 testindex，加载每个样本的图像数据
+    ims = loadim(mydictkey[testindex[i]]+'.pickle', aug=aug) # 调用 loadim() 函数加载图像数据，返回一个图像列表 ims
+    testdata[testcount,:,:] = ims[0] # 将第一个图像及其标签存储到 testdata 和 testlabel 中
     testlabel[testcount] = mydictvalue[testindex[i]]
     testcount += 1
-  assert(testcount==testdata.shape[0])
-  if usedream:
+  assert(testcount==testdata.shape[0]) # 使用 assert 确保加载的数据量与数组大小一致
+  # 合并额外数据
+  if usedream: # 如果启用 usedream，则调用 extractdreamdata() 函数加载额外的数据（dreamdata）
     outx, outy = extractdreamdata()
-    traindata = np.concatenate((traindata,outx), axis=0)
+    traindata = np.concatenate((traindata,outx), axis=0) # 将额外的数据合并到训练集中
     trainlabel = np.concatenate((trainlabel,outy), axis=0)
-  return traindata, trainlabel, testdata, testlabel
+  return traindata, trainlabel, testdata, testlabel # 返回训练集和测试集的数据和标签
 
 def loaddataenhance(fold, totalfold, valfold=-1, valnum=60):
   '''get the fold th train and  test data from inbreast
