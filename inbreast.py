@@ -265,49 +265,71 @@ def loaddata(fold, totalfold, usedream=True, aug=True):
     trainlabel = np.concatenate((trainlabel,outy), axis=0)
   return traindata, trainlabel, testdata, testlabel # 返回训练集和测试集的数据和标签
 
+# 函数功能
+# 根据交叉验证的 fold 划分训练集、验证集和测试集
+# 加载图像数据并进行归一化
+# 将验证集的一部分数据合并到训练集中，剩余部分作为验证集
+# 返回训练集、验证集和测试集的数据和标签
+# 参数说明
+# fold：当前 fold 编号（从 0 到 totalfold-1）
+# totalfold：交叉验证的总折数
+# valfold：验证集的 fold 编号。如果未指定（-1），则默认为 (fold + 1) % totalfold
+# valnum：从验证集中保留的样本数量，剩余样本合并到训练集中
 def loaddataenhance(fold, totalfold, valfold=-1, valnum=60):
   '''get the fold th train and  test data from inbreast
   fold is the returned fold th data, from 0 to totalfold-1
   total fold is for the cross validation'''
+  # 读取标签
+  # 调用 readlabel() 函数读取标签，返回一个字典 mydict，其中键为样本标识，值为标签
+  # mydictkey 和 mydictvalue 分别是字典的键和值
   mydict = readlabel()
   mydictkey = mydict.keys()
   mydictvalue = mydict.values()
+  # 调用 cvsplitenhance() 函数，根据当前 fold 和总折数 totalfold，划分训练集、验证集和测试集的索引
   trainindex, valindex, testindex = cvsplitenhance(fold, totalfold, mydict, valfold=valfold)
+  # 初始化训练集、验证集和测试集的数据和标签数组
   traindata, trainlabel = np.zeros((len(trainindex),227,227)), np.zeros((len(trainindex),))
   valdata, vallabel =  np.zeros((len(valindex),227,227)), np.zeros((len(valindex),))
   testdata, testlabel =  np.zeros((len(testindex),227,227)), np.zeros((len(testindex),))
+  # 加载训练集数据
   traincount = 0
-  for i in xrange(len(trainindex)):
-    ims = loadim(mydictkey[trainindex[i]]+'227.pickle')
-    for im in ims:
+  for i in xrange(len(trainindex)): # 遍历训练集索引 trainindex，加载每个样本的图像数据
+    ims = loadim(mydictkey[trainindex[i]]+'227.pickle') # 调用 loadim() 函数加载图像数据，返回一个图像列表 ims
+    for im in ims: # 将每个图像及其标签存储到 traindata 和 trainlabel 中
       traindata[traincount, :, :] = im
       trainlabel[traincount] = int(mydictvalue[trainindex[i]])
       traincount += 1
-  assert(traincount==traindata.shape[0])
+  assert(traincount==traindata.shape[0]) # 使用 assert 确保加载的数据量与数组大小一致
+  # 加载验证集数据
   valcount = 0
-  for i in xrange(len(valindex)):
-    ims = loadim(mydictkey[valindex[i]]+'227.pickle')
-    valdata[valcount,:,:] = ims[0]
+  for i in xrange(len(valindex)): # 遍历验证集索引 valindex，加载每个样本的图像数据
+    ims = loadim(mydictkey[valindex[i]]+'227.pickle') # 调用 loadim() 函数加载图像数据，返回一个图像列表 ims
+    valdata[valcount,:,:] = ims[0] # 将第一个图像及其标签存储到 valdata 和 vallabel 中
     vallabel[valcount] = int(mydictvalue[valindex[i]])
     valcount += 1
-  assert(valcount==valdata.shape[0])
+  assert(valcount==valdata.shape[0]) # 使用 assert 确保加载的数据量与数组大小一致
+  # 加载测试集数据
   testcount = 0
-  for i in xrange(len(testindex)):
+  for i in xrange(len(testindex)): # 遍历测试集索引 testindex，加载每个样本的图像数据
     #print mydictkey[testindex[i]]
-    ims = loadim(mydictkey[testindex[i]]+'227.pickle')
-    testdata[testcount,:,:] = ims[0]
+    ims = loadim(mydictkey[testindex[i]]+'227.pickle') # 调用 loadim() 函数加载图像数据，返回一个图像列表 ims
+    testdata[testcount,:,:] = ims[0] # 将第一个图像及其标签存储到 testdata 和 testlabel 中
     testlabel[testcount] = int(mydictvalue[testindex[i]])
     testcount += 1
-  assert(testcount==testdata.shape[0])
+  assert(testcount==testdata.shape[0]) # 使用 assert 确保加载的数据量与数组大小一致
   #print(valdata.shape)
+  # 对验证集的数据和标签进行随机打乱
   randindex = np.random.permutation(valdata.shape[0])
   valdata = valdata[randindex,:,:]
   vallabel = vallabel[randindex]
   #print(valdata.shape)
-  traindata = np.concatenate((traindata, valdata[valnum:,:,:]), axis=0)
-  trainlabel = np.concatenate((trainlabel, vallabel[valnum:]), axis=0)
-  valdata = valdata[:valnum,:,:]
+  # 合并验证集到训练集
+  traindata = np.concatenate((traindata, valdata[valnum:,:,:]), axis=0) # 将验证集中 valnum 之后的数据合并到训练集中
+  trainlabel = np.concatenate((trainlabel, vallabel[valnum:]), axis=0) # 
+  valdata = valdata[:valnum,:,:] # 保留验证集中前 valnum 个样本作为验证集
   vallabel = vallabel[:valnum]
+  # 归一化数据
+  # 计算训练集的最大值 maxvalue，并将训练集、验证集和测试集的数据归一化到 [0, 1] 范围
   maxvalue = (traindata.max()*1.0)
   print('inbreast max %f', maxvalue)
   traindata = traindata / maxvalue
@@ -322,6 +344,7 @@ def loaddataenhance(fold, totalfold, valfold=-1, valnum=60):
   #valdata /= stdx
   #testdata -= meanx
   #testdata /= stdx
+  # 打印训练集、验证集和测试集的均值、标准差、最大值和最小值
   print(traindata.mean(), traindata.std(), traindata.max(), traindata.min())
   print('val data feature')
   print(valdata.mean(), valdata.std(), valdata.max(), valdata.min())
@@ -336,6 +359,7 @@ def loaddataenhance(fold, totalfold, valfold=-1, valnum=60):
   #testdata = testdata - meandata
   #testdata = testdata / stddata
   return traindata, trainlabel, valdata, vallabel, testdata, testlabel
+  # 返回训练集、验证集和测试集的数据和标签
 
 if __name__ == '__main__':
   traindata, trainlabel, testdata, testlabel = loaddata(0, 5)
