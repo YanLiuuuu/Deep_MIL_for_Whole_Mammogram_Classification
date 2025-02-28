@@ -33,14 +33,14 @@ l2factor =  5e-6 #5e-6 #1e-5#
 l1factor = 0#2e-7
 usedream = False
 weighted = False #True
-noises = 50
+noises = 50 # 噪声数据量
 data_augmentation = True
 modelname = 'alexnet' # miccai16, alexnet, levynet, googlenet
 pretrain = True
 #sparsemil = True
 sparsemil = True
-sparsemill1 = 1e-5 #5 #1e-5#2e-4
-sparsemill2 = 0.0 #1e-2
+sparsemill1 = 1e-5 #5 #1e-5#2e-4 # 稀疏多实例学习的L1正则化系数
+sparsemill2 = 0.0 #1e-2 # 稀疏多实例学习的L2正则化系数
 savename = modelname+'new_fd'+str(fold)+'_vf'+str(valfold)+'_lr'+str(lr)+'_l2'+str(l2factor)+'_l1'\
 +str(l1factor)+'_ep'+str(nb_epoch)+'_bs'+str(batch_size)+'_w'+str(weighted)+'_dr'+str(usedream)+str(noises)+str(pretrain)+'_sp'+str(sparsemil)+str(sparsemill1)+str(sparsemill2)+'ft'#+str(valnum)
 print(savename)
@@ -51,6 +51,7 @@ img_rows, img_cols = 227, 227
 img_channels = 1
 
 # the data, shuffled and split between train and test sets
+# 数据加载与预处理
 trX, y_train, teX, y_test, teteX, y_test_test = inbreast.loaddataenhance(fold, 5, valfold=valfold)
 trY = y_train.reshape((y_train.shape[0],1))
 teY = y_test.reshape((y_test.shape[0],1))
@@ -63,6 +64,7 @@ weights = np.array((ratio, 1-ratio))
 #trYori = np.concatenate((1-trY, trY), axis=1)
 #teY = np.concatenate((1-teY, teY), axis=1)
 #teteY = np.concatenate((1-teteY, teteY), axis=1)
+# 将数据重塑为适合卷积神经网络的形状（[样本数, 通道数, 高度, 宽度]）
 X_train = trX.reshape(-1, img_channels, img_rows, img_cols)
 X_test = teX.reshape(-1, img_channels, img_rows, img_cols)
 X_test_test = teteX.reshape(-1, img_channels, img_rows, img_cols)
@@ -76,11 +78,13 @@ print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'val samples')
 print(X_test_test.shape[0], 'test samples')
+# 模型构建
 model = Sequential()
 if modelname == 'alexnet':
   X_train_extend = np.zeros((X_train.shape[0],3, 227, 227))
   for i in xrange(X_train.shape[0]):
     rex = np.resize(X_train[i,:,:,:], (227, 227))
+    # 将单通道图像扩展为三通道，以适配 AlexNet 的输入要求
     X_train_extend[i,0,:,:] = rex
     X_train_extend[i,1,:,:] = rex
     X_train_extend[i,2,:,:] = rex
@@ -99,6 +103,7 @@ if modelname == 'alexnet':
     X_test_test_extend[i,1,:,:] = rex
     X_test_test_extend[i,2,:,:] = rex
   X_test_test = X_test_test_extend
+  # 加载预训练的 AlexNet 模型，并将其权重迁移到新模型中
   if pretrain:  # 227*227
     alexmodel = convnet('alexnet', weights_path='alexnet_weights.h5', heatmap=False, l1=l1factor, l2=l2factor)
     model = convnet('alexnet', outdim=2, l1=l1factor, l2=l2factor, sparsemil=sparsemil, sparsemill1=sparsemill1, sparsemill2=sparsemill2)
@@ -114,6 +119,8 @@ if modelname == 'alexnet':
     model = convnet('alexnet', outdim=2, l1=l1factor,l2=l2factor, sparsemil=sparsemil, sparsemill1=sparsemill1, sparsemill2=sparsemill2)
 
 X_test_test = X_test_test.astype('float32')
+# 模型训练与评估
+# 加载保存的模型权重，并对训练集、验证集和测试集进行预测
 for f in os.listdir('./'):
   metric = ['f1']#['auc','f1','reca','prec','acc','loss']
   for m in metric:
@@ -143,6 +150,7 @@ for f in os.listdir('./'):
       label = np.concatenate([y_train, y_test])
       import xgboost as xgb 
       from xgboost.sklearn import XGBClassifier
+      # 使用 XGBoost 对提取的特征进行分类
       xgb1 = XGBClassifier(learning_rate=0.1, n_estimators=100000, max_depth=5, min_child_weight=1, gamma=0, \
       	subsample=0.8, colsample_bytree=0.8, objective='binary:logistic', nthread=16, scale_pos_weight=1, seed=0)
       xgb1.fit(data, label)
@@ -159,6 +167,8 @@ for f in os.listdir('./'):
           bestthre = thre
       bestdepth = 5
       bestchildweight = 1
+      # 超参数调优
+      # 对 XGBoost 的超参数（如 max_depth、min_child_weight 等）进行调优
       for max_depth in xrange(3, 10,1):
         for min_child_weight in xrange(1,10,1):
           xgb1 = XGBClassifier(learning_rate=0.1, n_estimators=100000, max_depth=max_depth, min_child_weight=min_child_weight, gamma=0,\
@@ -298,6 +308,8 @@ for f in os.listdir('./'):
           bestacc = np.mean((y_pred_val > thre) == y_test)
           bestthre = thre
       print(bestthre, bestacc)
+      # 结果评估
+      # 计算分类性能指标（如 AUC、准确率等）
       fpr, tpr, thresholds = metrics.roc_curve(y_test_test, ypred, pos_label=1)
       print('auc', metrics.auc(fpr, tpr))
       print('acc', metrics.accuracy_score(y_test_test, ypred))'''
